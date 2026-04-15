@@ -670,6 +670,12 @@ class Preonic : public kaleidoscope::device::Base<PreonicProps> {
       return false;
     }
 
+    // Don't sleep if we have a bonded device but are disconnected —
+    // keep advertising so we can reconnect when the host wakes
+    if (!ble().connected() && Bluefruit.Advertising.isRunning()) {
+      return false;
+    }
+
     if (now - last_activity_time_ >= DEEP_SLEEP_TIMEOUT_MS) {
       return true;
     }
