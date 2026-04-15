@@ -795,10 +795,10 @@ void BLEBluefruit::disconnect_cb(uint16_t conn_handle, uint8_t reason) {
 void BLEBluefruit::startConnectableAdvertising() {
   stopAdvertising();
   configureAdvertising();
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE);
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
 
   DEBUG_BLE_MSG("Attempting to start advertising...");
-  if (!Bluefruit.Advertising.start(ADVERTISING_TIMEOUT)) {
+  if (!Bluefruit.Advertising.start(0)) {  // Advertise indefinitely until connected
     DEBUG_BLE_MSG("Failed to start advertising");
   }
   DEBUG_BLE_MSG("Started connectable advertising");
