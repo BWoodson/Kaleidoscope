@@ -59,8 +59,10 @@ volatile bool BLEBluefruit::bond_write_pending         = false;
  * 
  * This method:
  * 1. Disables advertising auto restart on disconnect
- * 2. If not currently connected, reduces TX power to minimum level
- * 
+ * 2. If not currently connected AND not advertising, reduces TX power to
+ *    minimum level. When advertising for reconnection to a bonded host,
+ *    TX power is preserved so the host can discover us on wake.
+ *
  * These changes help reduce power consumption during deep sleep.
  */
 void BLEBluefruit::prepareForSleep() {
@@ -72,8 +74,12 @@ void BLEBluefruit::prepareForSleep() {
   // Disable advertising auto restart
   Bluefruit.Advertising.restartOnDisconnect(false);
 
-  // If not connected, reduce TX power to minimum
-  if (!Bluefruit.Periph.connected()) {
+  // If not connected and not advertising, reduce TX power to minimum.
+  // If we ARE advertising (e.g. waiting for a bonded host to reconnect),
+  // keep TX power at its normal level — SoftDevice continues advertising
+  // during WFE sleep, and dropping to -40 dBm makes the keyboard
+  // effectively invisible to the host when it wakes.
+  if (!Bluefruit.Periph.connected() && !Bluefruit.Advertising.isRunning()) {
     // Store current TX power before changing it
     pre_sleep_tx_power = Bluefruit.getTxPower();
 
