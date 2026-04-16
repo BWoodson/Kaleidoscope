@@ -768,7 +768,9 @@ void BLEBluefruit::disconnect_cb(uint16_t conn_handle, uint8_t reason) {
       delay(100);  // Normal delay
     }
 
-    startDiscoverableAdvertising();
+    // Use connectable advertising to reconnect to the bonded host,
+    // not discoverable advertising which is for new pairing
+    startConnectableAdvertising();
     break;
 
   case BLE_HCI_LOCAL_HOST_TERMINATED_CONNECTION:
