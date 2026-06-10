@@ -59,8 +59,10 @@ volatile bool BLEBluefruit::bond_write_pending         = false;
  * 
  * This method:
  * 1. Disables advertising auto restart on disconnect
- * 2. If not currently connected, reduces TX power to minimum level
- * 
+ * 2. If not currently connected AND not advertising, reduces TX power to
+ *    minimum level. When advertising for reconnection to a bonded host,
+ *    TX power is preserved so the host can discover us on wake.
+ *
  * These changes help reduce power consumption during deep sleep.
  */
 void BLEBluefruit::prepareForSleep() {
@@ -72,8 +74,12 @@ void BLEBluefruit::prepareForSleep() {
   // Disable advertising auto restart
   Bluefruit.Advertising.restartOnDisconnect(false);
 
-  // If not connected, reduce TX power to minimum
-  if (!Bluefruit.Periph.connected()) {
+  // If not connected and not advertising, reduce TX power to minimum.
+  // If we ARE advertising (e.g. waiting for a bonded host to reconnect),
+  // keep TX power at its normal level — SoftDevice continues advertising
+  // during WFE sleep, and dropping to -40 dBm makes the keyboard
+  // effectively invisible to the host when it wakes.
+  if (!Bluefruit.Periph.connected() && !Bluefruit.Advertising.isRunning()) {
     // Store current TX power before changing it
     pre_sleep_tx_power = Bluefruit.getTxPower();
 
@@ -768,7 +774,9 @@ void BLEBluefruit::disconnect_cb(uint16_t conn_handle, uint8_t reason) {
       delay(100);  // Normal delay
     }
 
-    startDiscoverableAdvertising();
+    // Use connectable advertising to reconnect to the bonded host,
+    // not discoverable advertising which is for new pairing
+    startConnectableAdvertising();
     break;
 
   case BLE_HCI_LOCAL_HOST_TERMINATED_CONNECTION:
@@ -795,10 +803,10 @@ void BLEBluefruit::disconnect_cb(uint16_t conn_handle, uint8_t reason) {
 void BLEBluefruit::startConnectableAdvertising() {
   stopAdvertising();
   configureAdvertising();
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE);
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
 
   DEBUG_BLE_MSG("Attempting to start advertising...");
-  if (!Bluefruit.Advertising.start(ADVERTISING_TIMEOUT)) {
+  if (!Bluefruit.Advertising.start(0)) {  // Advertise indefinitely until connected
     DEBUG_BLE_MSG("Failed to start advertising");
   }
   DEBUG_BLE_MSG("Started connectable advertising");
